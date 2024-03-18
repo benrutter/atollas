@@ -1,0 +1,32 @@
+[project]
+name = "typist-for-pandas"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Ben", email = "unknown@domain.invalid" }
+]
+dependencies = [
+    "pandas>=2",
+    "pyarrow>=15.0.1",
+]
+readme = "README.md"
+requires-python = ">= 3.10"
+
+[project.scripts]
+hello = "typist_for_pandas:hello"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ipdb>=0.13.13",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/typist_for_pandas"]

@@ -13,6 +13,11 @@ def unique(column_type: ColumnType) -> ColumnType:
     return_type.unique = True
     return return_type
 
+def not_unique(column_type: ColumnType) -> ColumnType:
+    return_type = deepcopy(column_type)
+    return_type.unique = False
+    return return_type
+
 def nullable(column_type: ColumnType) -> ColumnType:
     return_type = deepcopy(column_type)
     return_type.nullable = True

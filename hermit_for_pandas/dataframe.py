@@ -2,7 +2,10 @@ from typing import Callable, Tuple
 
 import pandas as pd
 
-from typist_for_pandas.dataframe_schema import Schema
+from hermit_for_pandas.dataframe_schema import Schema, merge_schemas
+from hermit_for_pandas.types import unique
+from hermit_for_pandas.aggregations import Aggregation
+
 
 
 class DataFrame:
@@ -14,13 +17,15 @@ class DataFrame:
     def to_pandas(self):
         return self.df.copy()
 
-    def enforce_schema(self) -> "DataFrame":
+    def enforce_schema(self, detailed=False) -> "DataFrame":
         schema_dict = self.schema.to_dict()
         if missing_columns := [i for i in schema_dict if i not in self.df.columns]:
             raise TypeError(
                 f"{', '.join(missing_columns)} not present in returned df",
             )
         self.df = self.df[list(schema_dict)].astype({k: v.representation for k, v in schema_dict.items()})
+        if not detailed:
+            return self
         for non_nullable_column in [k for k, v in schema_dict.items() if not v.nullable]:
             if any(self.df[non_nullable_column].isnull()):
                 raise TypeError(f"Column {non_nullable_column} contains nulls but is typed as non-nullable")
@@ -34,7 +39,7 @@ class DataFrame:
         return DataFrame(
             df=self.df.assign(**kwargs),
             schema=self.schema + schema,
-        )
+        ).enforce_schema()
 
     def filter(self, expression: Callable) -> "DataFrame":
         return DataFrame(
@@ -46,7 +51,7 @@ class DataFrame:
         return DataFrame(
             df=self.df.pipe(func, *args, **kwargs),
             schema=schema,
-        )
+        ).enforce_schema()
 
     def rename(self, columns) -> "DataFrame":
         return DataFrame(
@@ -89,17 +94,19 @@ class DataFrame:
         right: "DataFrame",
         cardinality: str,
         how: str = "inner",
-        on: str | list[str] = None,
+        on: str | list[str] | None = None,
         left_on: str | list[str] = None,
         right_on: str | list[str] = None,
         suffixes: Tuple[str, str] = ("_x", "_y"),
     ) -> "DataFrame":
+        if on:
+            left_on, right_on = on, on
+        left_on = [left_on] if isinstance(left_on, str) else left_on
+        right_on = [right_on] if isinstance(right_on, str) else right_on
         if not on and not (left_on and right_on):
             raise ValueError(
                 "either 'on' or 'left_on' and 'right_on' must be given"
             )
-        if on:
-            left_on, right_on = on, on
         if cardinality not in [
             "many-to-many",
             "one-to-many",
@@ -114,7 +121,10 @@ class DataFrame:
             raise ValueError(error_message)
         left_cardinality, _, right_cardinality = cardinality.split("-")
         if left_cardinality == "one":
-            for column, column_type in self.schema.to_dict().items():
+            for column, column_type in self.schema:
+                if column not in left_on:
+                    continue
+
                 if not column_type.unique or column_type.nullable:
                     error_message: str = (
                         f"Type of column {column} is invalid for a one-to-x "
@@ -122,10 +132,47 @@ class DataFrame:
                     )
                     raise ValueError(error_message)
         if right_cardinality == "one":
-            for column, column_type in right.schema.to_dict().items():
+            for column, column_type in self.schema:
+                if column not in right_on:
+                    continue
                 if not column_type.unique or column_type.nullable:
                     error_message: str = (
                         f"Type of column {column} is invalid for a x-to-one "
                         "join (must be unique and non-nullable)"
                     )
-        raise NotImplementedError("TODO: put in place schema inference for joined")
+        new_schema = merge_schemas(self.schema, right.schema, left_on, right_on, suffixes[0], suffixes[1])
+        return DataFrame(
+            self.df.merge(right.df, how=how, left_on=left_on, right_on=right_on, suffixes=suffixes),
+            schema=new_schema,
+        )
+
+    def aggregate(self, by=list[str] | str, **kwargs: Aggregation) -> "DataFrame":
+
+        """
+        Groupby and Aggregate function
+        """
+        if isinstance(by, str):
+            by = [by]
+        new_df = self.df.groupby(by, as_index=False).agg(
+            **{k: v.pandas_aggregation() for k, v in kwargs.items()}
+        )
+        new_schema = {}
+        for column in by:
+            if len(by) == 1:
+                new_schema[column] = unique(self.schema[column])
+            else:
+                new_schema[column] = self.schema[column]
+        for column, aggregation in kwargs.items():
+            new_schema[column] = aggregation.output_type(self.schema[aggregation.column])
+
+        return DataFrame(
+            new_df,
+            schema=Schema(**new_schema),
+        )
+
+    def __str__(self):
+        return str(self.df) + "\n\n" + '\n'.join(f"{k}: {v}" for k, v in self.schema)
+
+
+    def __repr__(self):
+        return self.__str__()

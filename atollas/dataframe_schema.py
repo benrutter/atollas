@@ -1,7 +1,7 @@
 from typing import List, Dict
 from dataclasses import dataclass
 
-from hermit_for_pandas.types import ColumnType, nullable, not_unique
+from atollas.types import ColumnType, nullable, not_unique
 
 @dataclass
 class Schema:

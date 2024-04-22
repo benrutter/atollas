@@ -2,9 +2,9 @@ from typing import Callable, Tuple
 
 import pandas as pd
 
-from hermit_for_pandas.dataframe_schema import Schema, merge_schemas
-from hermit_for_pandas.types import unique
-from hermit_for_pandas.aggregations import Aggregation
+from atollas.dataframe_schema import Schema, merge_schemas
+from atollas.types import unique
+from atollas.aggregations import Aggregation
 
 
 
@@ -169,6 +169,9 @@ class DataFrame:
             new_df,
             schema=Schema(**new_schema),
         )
+
+    def filter_columns(self, columns: list[str]) -> "DataFrame":
+        raise NotImplementedError
 
     def __str__(self):
         return str(self.df) + "\n\n" + '\n'.join(f"{k}: {v}" for k, v in self.schema)

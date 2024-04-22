@@ -2,12 +2,12 @@ from datetime import datetime
 
 import pandas as pd
 
-from hermit_for_pandas import (
+from atollas import (
     dataframe_schema as s,
     types as t,
     dataframe as df,
 )
-from hermit_for_pandas.aggregations import Max, Min
+from atollas.aggregations import Max, Min
 
 
 

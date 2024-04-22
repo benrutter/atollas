@@ -1,7 +1,7 @@
 import abc
 from pandas import NamedAgg
 
-from hermit_for_pandas.types import ColumnType
+from atollas.types import ColumnType
 
 class Aggregation(abc.ABC):
     def __init__(self, column: str):

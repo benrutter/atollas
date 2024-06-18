@@ -7,6 +7,18 @@ from atollas.types import unique
 from atollas.aggregations import Aggregation
 
 
+def _output_wrapper(self, pandas_function: Callable, filetype: str):
+    def wrapped_function(self, path: str, **kwargs) -> "DataFrame":
+        f"""
+        Output function for storing dataframe via {filetype}.
+
+        Additional keyword arguments are passed into pandas to {filetype} function.
+        """
+        pandas_function(self.df, **kwargs)
+
+    return wrapped_function
+
+
 class DataFrame:
     def __init__(self, df: pd.DataFrame, schema: Schema):
         self.df = df
@@ -175,7 +187,23 @@ class DataFrame:
         )
 
     def filter_columns(self, columns: list[str]) -> "DataFrame":
-        raise NotImplementedError
+        new_df = self.df[columns]
+        new_schema = {k: v for k, v in self.schema if k in columns}
+        return DataFrame(new_df, schema=Schema(**new_schema))
+
+    to_csv = _output_wrapper(pd.DataFrame.to_csv, "csv")
+    to_json = _output_wrapper(pd.DataFrame.to_json, "json")
+    to_html = _output_wrapper(pd.DataFrame.to_html, "html")
+    to_latex = _output_wrapper(pd.DataFrame.to_latex, "latex")
+    to_xml = _output_wrapper(pd.DataFrame.to_xml, "xml")
+    to_excel = _output_wrapper(pd.DataFrame.to_excel, "excel")
+    to_hdf = _output_wrapper(pd.DataFrame.to_hdf, "hdf")
+    to_feather = _output_wrapper(pd.DataFrame.to_feather, "feather")
+    to_parquet = _output_wrapper(pd.DataFrame.to_parquet, "parqet")
+    to_orc = _output_wrapper(pd.DataFrame.to_orc, "orc")
+    to_stata = _output_wrapper(pd.DataFrame.to_stata, "stata")
+    to_sql = _output_wrapper(pd.DataFrame.to_sql, "sql")
+    to_gbq = _output_wrapper(pd.DataFrame.to_gbq, "gbq")
 
     def __str__(self):
         return str(self.df) + "\n\n" + "\n".join(f"{k}: {v}" for k, v in self.schema)

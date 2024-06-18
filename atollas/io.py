@@ -1,14 +1,16 @@
-from functools import wraps
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Union
 
 import pandas as pd
 
 from atollas import DataFrame
 from atollas import types as at
+from atollas.dataframe_schema import Schema
 
 
 def _input_wrapper(pandas_function: Callable, filetype: str):
-    def wrapped_function(io: Any, schema: Dict[str, at.ColumnType], **kwargs):
+    def wrapped_function(
+        io: Any, schema: Union[Dict[str, at.ColumnType], Schema], **kwargs
+    ):
         f"""
         Input function for {filetype} ingestion.
 
@@ -16,6 +18,8 @@ def _input_wrapper(pandas_function: Callable, filetype: str):
         function.
         """
         df = pandas_function(io, **kwargs)
+        if isinstance(schema, dict):
+            schema = Schema(**schema)
         return DataFrame(df, schema).enforce_schema()
 
     return wrapped_function

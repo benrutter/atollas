@@ -1,6 +1,6 @@
 # atollas 🪼
 
-A follow along column-level typed runner for pandas workflows.
+A column level typed runner for pandas workflows.
 
 ## ⚠️ Warning
 
@@ -8,7 +8,7 @@ This is still very *pre-alpha and experimental*, have fun experimenting with it,
 
 ## Motivation
 
-Let's work through this series of operations and consider things that could possibly throw errors:
+Let's work through this series of operations and consider things that could possibly throw run-time errors:
 
 ```python
 import pandas as pd
@@ -36,23 +36,22 @@ Essentially, all these errors are problems with the data not matching our implic
 *Atollas* is a column-level type safe runner for pandas, the above code using Atollas would look like this:
 
 ```python
-import atollas
-import atollas.types as at
-import atollas.aggregations as ag
+import atollas as atl
+from atollas import unique, integer, string, double, datetime_tz
 
 spot_the_fail = (
-  atollas.read_csv(
+  atl.read_csv(
     "some_file.csv",
-    schema={"col_1": at.unique(at.integer), "col_2": at.string, "col_3": at.double},
+    schema={"col_1": unique(integer), "col_2": string, "col_3": double},
   )  # <- specified schema is incorrect
   aggregate(
     by=["col_1", "col_2"],
     col_3=ag.Sum("col_3"),
   )
   .merge(
-    atollas.read_parquet(
+    atl.read_parquet(
        "another_file.parquet",
-       schema={"col_1": at.unique(at.integer), "col_4": at.datetime_tz("UTC")},
+       schema={"col_1": unique(integer), "col_4": datetime_tz("UTC")},
     ),  # <- specified schema is incorrect
     cardinality="one-to-one",
     on="col_1",
@@ -61,9 +60,9 @@ spot_the_fail = (
 )
 ```
 
-Note that we have to take on more lines of code, because we're having to express not just what we're doing with the data, but also *what we're expecting the data to look like*. The upshot of that, is there are now only two possible places for runtime errors - when we're reading in the csv, and when we're reading in the parquet.
+We have to bear some additional boilerplate, but our code is now a lot more predictable, huzzah! Note that IO operations are the only ones that can fail indeterminately now. This is the core idea behind `atollas`: If something runs *once*, it should *run* everytime, only throwing errors at io boundaries.
 
-This is a massive benefit for production workflows, because all dataframe errors are reduced to something like:
+This is a massive benefit for production workflows, because all errors are reduced to something like:
 
 ```
 atollas.read_csv raise TypeError:
@@ -71,7 +70,6 @@ atollas.read_csv raise TypeError:
   "col_1" is meant to be unique, but has duplicate records
 ```
 
-Which means we can quickly track down any issues.
+Which means we can track down issues a *lot* faster.
 
-Atollas monitors the types at read time, and will also raise an error if we try to carry out operations that are incorrect for our given schema, for instance, we can only merge with a "one-to-one" cardinality because `col_1` is unique in both dataframes (as indicated by the `at.unique(at.integer)` type, if that hadn't been specified, atollas would throw an error during testing or any run time telling us those instructions aren't valid.
-
+Atollas monites types at read time, and additionally will raise errors when operations are incorrect for the specified schema. For instance, if merging with `one-to-one` cardinality, both sides of the merge operation must be unique (i.e. a `unique(integer)` type rather than simply `integer`). This helps you catch errors you didn't even think of at development time, neato-burrito!

@@ -7,14 +7,15 @@ from atollas.types import unique
 from atollas.aggregations import Aggregation
 
 
-def _output_wrapper(self, pandas_function: Callable, filetype: str):
+def _output_wrapper(pandas_function: Callable, filetype: str):
     def wrapped_function(self, path: str, **kwargs) -> "DataFrame":
         f"""
         Output function for storing dataframe via {filetype}.
 
         Additional keyword arguments are passed into pandas to {filetype} function.
         """
-        pandas_function(self.df, **kwargs)
+        pandas_function(self.df, path, **kwargs)
+        return self
 
     return wrapped_function
 
@@ -27,16 +28,26 @@ class DataFrame:
     def to_pandas(self):
         return self.df.copy()
 
-    def enforce_schema(self, detailed=True) -> "DataFrame":
+    def enforce_schema(self, full_check=True) -> "DataFrame":
         schema_dict = self.schema.to_dict()
         if missing_columns := [i for i in schema_dict if i not in self.df.columns]:
             raise TypeError(
                 f"{', '.join(missing_columns)} not present in returned df",
             )
-        self.df = self.df[list(schema_dict)].astype(
-            {k: v.representation for k, v in schema_dict.items()}
-        )
-        if not detailed:
+        try:
+            self.df = self.df[list(schema_dict)].astype(
+                {k: v.representation for k, v in schema_dict.items()}
+            )
+        except ValueError as exception:
+            message = (
+                "The given datatypes are different from as they have been "
+                "specified in the schema, and atollas is not able to enforce "
+                "or convert them into their expected type.\n\n"
+                f"Actual types: {self.df.dtypes.to_dict()}\n"
+                f"Expected schema: { {k: v.representation for k, v in self.schema} }"
+            )
+            raise ValueError(message) from exception
+        if not full_check:
             return self
         for non_nullable_column in [
             k for k, v in schema_dict.items() if not v.nullable

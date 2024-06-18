@@ -7,9 +7,7 @@ from atollas.types import unique
 from atollas.aggregations import Aggregation
 
 
-
 class DataFrame:
-
     def __init__(self, df: pd.DataFrame, schema: Schema):
         self.df = df
         self.schema = schema
@@ -17,21 +15,29 @@ class DataFrame:
     def to_pandas(self):
         return self.df.copy()
 
-    def enforce_schema(self, detailed=False) -> "DataFrame":
+    def enforce_schema(self, detailed=True) -> "DataFrame":
         schema_dict = self.schema.to_dict()
         if missing_columns := [i for i in schema_dict if i not in self.df.columns]:
             raise TypeError(
                 f"{', '.join(missing_columns)} not present in returned df",
             )
-        self.df = self.df[list(schema_dict)].astype({k: v.representation for k, v in schema_dict.items()})
+        self.df = self.df[list(schema_dict)].astype(
+            {k: v.representation for k, v in schema_dict.items()}
+        )
         if not detailed:
             return self
-        for non_nullable_column in [k for k, v in schema_dict.items() if not v.nullable]:
+        for non_nullable_column in [
+            k for k, v in schema_dict.items() if not v.nullable
+        ]:
             if any(self.df[non_nullable_column].isnull()):
-                raise TypeError(f"Column {non_nullable_column} contains nulls but is typed as non-nullable")
+                raise TypeError(
+                    f'Column "{non_nullable_column}" contains nulls but is typed as non-nullable'
+                )
         for unique_column in [k for k, v in schema_dict.items() if v.unique]:
             if any(self.df[unique_column].duplicated()):
-                raise TypeError(f"Column {non_nullable_column} contains duplicates but is typed as unique")
+                raise TypeError(
+                    f'Column "{non_nullable_column}" contains duplicates but is typed as unique'
+                )
 
         return self
 
@@ -56,20 +62,15 @@ class DataFrame:
     def rename(self, columns) -> "DataFrame":
         return DataFrame(
             df=self.df.rename(columns=columns),
-            schema=Schema(**{
-                k: v for k, v in
-                self.schema.to_dict().items()
-            }),
+            schema=Schema(**{k: v for k, v in self.schema.to_dict().items()}),
         )
 
     def drop(self, columns: list[str], errors: str = "raise") -> "DataFrame":
         return DataFrame(
             df=self.df.drop(columns=columns, errors=errors),
-            schema=Schema(**{
-                k: v for k, v in
-                self.schema.to_dict().items()
-                if k not in columns
-            }),
+            schema=Schema(
+                **{k: v for k, v in self.schema.to_dict().items() if k not in columns}
+            ),
         )
 
     def astype(self, schema: Schema):
@@ -88,7 +89,7 @@ class DataFrame:
             df=self.df.dropna(how=how, subset=subset),
             schema=Schema(**new_schema),
         )
-    
+
     def merge(
         self,
         right: "DataFrame",
@@ -104,9 +105,7 @@ class DataFrame:
         left_on = [left_on] if isinstance(left_on, str) else left_on
         right_on = [right_on] if isinstance(right_on, str) else right_on
         if not on and not (left_on and right_on):
-            raise ValueError(
-                "either 'on' or 'left_on' and 'right_on' must be given"
-            )
+            raise ValueError("either 'on' or 'left_on' and 'right_on' must be given")
         if cardinality not in [
             "many-to-many",
             "one-to-many",
@@ -140,14 +139,17 @@ class DataFrame:
                         f"Type of column {column} is invalid for a x-to-one "
                         "join (must be unique and non-nullable)"
                     )
-        new_schema = merge_schemas(self.schema, right.schema, left_on, right_on, suffixes[0], suffixes[1])
+        new_schema = merge_schemas(
+            self.schema, right.schema, left_on, right_on, suffixes[0], suffixes[1]
+        )
         return DataFrame(
-            self.df.merge(right.df, how=how, left_on=left_on, right_on=right_on, suffixes=suffixes),
+            self.df.merge(
+                right.df, how=how, left_on=left_on, right_on=right_on, suffixes=suffixes
+            ),
             schema=new_schema,
         )
 
     def aggregate(self, by=list[str] | str, **kwargs: Aggregation) -> "DataFrame":
-
         """
         Groupby and Aggregate function
         """
@@ -163,7 +165,9 @@ class DataFrame:
             else:
                 new_schema[column] = self.schema[column]
         for column, aggregation in kwargs.items():
-            new_schema[column] = aggregation.output_type(self.schema[aggregation.column])
+            new_schema[column] = aggregation.output_type(
+                self.schema[aggregation.column]
+            )
 
         return DataFrame(
             new_df,
@@ -174,8 +178,7 @@ class DataFrame:
         raise NotImplementedError
 
     def __str__(self):
-        return str(self.df) + "\n\n" + '\n'.join(f"{k}: {v}" for k, v in self.schema)
-
+        return str(self.df) + "\n\n" + "\n".join(f"{k}: {v}" for k, v in self.schema)
 
     def __repr__(self):
         return self.__str__()

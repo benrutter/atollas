@@ -6,7 +6,10 @@ A column level typed runner for pandas workflows.
 
 This is still very *pre-alpha and experimental*, have fun experimenting with it, but it isn't ready for production workflows just yet.
 
+
 ## Motivation
+
+Pandas is an amazing tool for interactive data analysis - but that's a little at odds with reliability in a production setting. Atollas is designed to be a type checking container for pandas workflows, to allow greater reliability in production.
 
 Let's work through this series of operations and consider things that could possibly throw run-time errors:
 
@@ -38,15 +41,16 @@ Essentially, all these errors are problems with the data not matching our implic
 ```python
 import atollas as atl
 from atollas import unique, integer, string, double, datetime_tz
+from atollas.aggregations import Sum
 
 spot_the_fail = (
   atl.read_csv(
     "some_file.csv",
     schema={"col_1": unique(integer), "col_2": string, "col_3": double},
   )  # <- specified schema is incorrect
-  aggregate(
+  .aggregate(
     by=["col_1", "col_2"],
-    col_3=ag.Sum("col_3"),
+    col_3=Sum("col_3"),
   )
   .merge(
     atl.read_parquet(
@@ -56,7 +60,7 @@ spot_the_fail = (
     cardinality="one-to-one",
     on="col_1",
   )
-  .filter_columns("col_1", "col_2", "col_3")
+  .filter_columns(["col_1", "col_2", "col_3"])
 )
 ```
 
@@ -72,4 +76,4 @@ atollas.read_csv raise TypeError:
 
 Which means we can track down issues a *lot* faster.
 
-Atollas monites types at read time, and additionally will raise errors when operations are incorrect for the specified schema. For instance, if merging with `one-to-one` cardinality, both sides of the merge operation must be unique (i.e. a `unique(integer)` type rather than simply `integer`). This helps you catch errors you didn't even think of at development time, neato-burrito!
+Atollas moniters types at read time, and additionally will raise errors when operations are incorrect for the specified schema. For instance, if merging with `one-to-one` cardinality, both sides of the merge operation must be unique (i.e. a `unique(integer)` type rather than simply `integer`). This helps you catch errors you didn't even think of at development time, neato-burrito!

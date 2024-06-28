@@ -1,9 +1,9 @@
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Union, Dict
 
 import pandas as pd
 
 from atollas.dataframe_schema import Schema, merge_schemas
-from atollas.types import unique
+from atollas.types import unique, ColumnType
 from atollas.aggregations import Aggregation
 
 
@@ -21,14 +21,29 @@ def _output_wrapper(pandas_function: Callable, filetype: str):
 
 
 class DataFrame:
-    def __init__(self, df: pd.DataFrame, schema: Schema):
+    def __init__(self, df: pd.DataFrame, schema: Union[Dict[str, ColumnType], Schema]):
+        """
+        Initialise atollas dataframe based on a pandas dataframe and schema
+        """
+        if isinstance(schema, dict):
+            schema = Schema(**schema)
         self.df = df
         self.schema = schema
 
     def to_pandas(self):
+        """
+        Convert types atollas dataframe into an ordinary pandas dataframe
+        """
         return self.df.copy()
 
     def enforce_schema(self, full_check=True) -> "DataFrame":
+        """
+        Ensure schema is accurate, will convert types where possible (such as float
+        to doubles) and will drop columns that are not present in schema.
+
+        If full_check is true (as per default) it will also ensure non-null
+        and uniqueness values.
+        """
         schema_dict = self.schema.to_dict()
         if missing_columns := [i for i in schema_dict if i not in self.df.columns]:
             raise TypeError(
@@ -64,31 +79,85 @@ class DataFrame:
 
         return self
 
-    def assign(self, schema: Schema, **kwargs) -> "DataFrame":
+    def assign(
+        self, schema: Union[Dict[str, ColumnType], Schema], **kwargs
+    ) -> "DataFrame":
+        """
+        Assign columns into the dataframe. See pandas documentation on assign
+        for further details.
+
+        Atollas also requires a "schema" argument of the output schema from
+        after the operation.
+        """
+        if isinstance(schema, dict):
+            schema = Schema(**schema)
         return DataFrame(
             df=self.df.assign(**kwargs),
             schema=self.schema + schema,
         ).enforce_schema()
 
     def filter(self, expression: Callable) -> "DataFrame":
+        """
+        Filters a dataframe based on a given expression (function taking a pandas
+        dataframe)
+
+        For example:
+
+        ```python
+        df.filter(lambda df: df.some_column == 8)
+        ```
+
+        Will filter the dataframe to only entries where "some_column" is equal
+        to 8. This is the equivalent of the following pandas code:
+
+        ```python
+        df.loc[lambda df: df.some_column == 8]
+        ```
+        """
         return DataFrame(
             df=self.df.loc[expression],
             schema=self.schema,
         )
 
-    def pipe(self, func, schema: Schema, *args, **kwargs) -> "DataFrame":
+    def pipe(
+        self,
+        func: Callable,
+        schema: Union[Dict[str, ColumnType], Schema],
+        *args,
+        **kwargs,
+    ) -> "DataFrame":
+        """
+        Pipe is an escape hatch for when you either want to:
+            - Wrap up more complicated logic into a single line for readability
+            - Execute pandas code that isn't supported within attolas
+
+        The given function will be called on the *pandas* (i.e. not atollas) dataframe.
+
+        Note, that you'll need to also give a schema of the output, so that attolas
+        can understand what to expect after the fact. Atollas will automatically enforce
+        the given schema after the pipe call, and raise an error if not possible.
+        """
+        if isinstance(schema, dict):
+            schema = Schema(**schema)
         return DataFrame(
             df=self.df.pipe(func, *args, **kwargs),
             schema=schema,
         ).enforce_schema()
 
-    def rename(self, columns) -> "DataFrame":
+    def rename(self, columns: dict) -> "DataFrame":
+        """
+        Rename columns in dataframe
+        """
+        new_schema = {k: v if k not in columns else columns[k] for k, v in self.schema}
         return DataFrame(
             df=self.df.rename(columns=columns),
-            schema=Schema(**{k: v for k, v in self.schema.to_dict().items()}),
+            schema=Schema(**new_schema),
         )
 
     def drop(self, columns: list[str], errors: str = "raise") -> "DataFrame":
+        """
+        Drop columns from dataframe
+        """
         return DataFrame(
             df=self.df.drop(columns=columns, errors=errors),
             schema=Schema(
@@ -96,13 +165,22 @@ class DataFrame:
             ),
         )
 
-    def astype(self, schema: Schema):
+    def astype(self, schema: Union[Dict[str, ColumnType], Schema]):
+        """
+        Will convert the type of columns based on the given schema
+        """
+        if isinstance(schema, dict):
+            schema = Schema(**schema)
+        schema |= {k: v for k, v in self.schema if k not in schema}
         return DataFrame(
             df=self.df,
             schema=schema,
         ).enforce_schema()
 
     def dropna(self, how: str = "any", subset: list[str] | None = None) -> "DataFrame":
+        """
+        Will drop null fields form the dataframe.
+        """
         new_schema = {}
         for k, v in self.schema.to_dict().items():
             if subset is None or k in subset:
@@ -123,6 +201,17 @@ class DataFrame:
         right_on: str | list[str] = None,
         suffixes: Tuple[str, str] = ("_x", "_y"),
     ) -> "DataFrame":
+        """
+        Join operation for two attolas dataframes.
+
+        `on` keyword will overwrite any "left_on" and "right_on" arguments.
+
+        `cardinality` keyword must be one of the following:
+            - "many-to-many"
+            - "one-to-many"
+            - "many-to-one"
+            - "one-to-one"
+        """
         if on:
             left_on, right_on = on, on
         left_on = [left_on] if isinstance(left_on, str) else left_on
@@ -174,7 +263,12 @@ class DataFrame:
 
     def aggregate(self, by=list[str] | str, **kwargs: Aggregation) -> "DataFrame":
         """
-        Groupby and Aggregate function
+        Will aggregate a dataframe (see attolas.aggregations for possible options)
+
+        by keyword must be given as a group of fields to groupby.
+
+        Any additional keyword arguments are the names of fields, and must be an
+        atollas aggregation object.
         """
         if isinstance(by, str):
             by = [by]
@@ -198,6 +292,12 @@ class DataFrame:
         )
 
     def filter_columns(self, columns: list[str]) -> "DataFrame":
+        """
+        Filter columns to a given subset.
+
+        Note that `df.filter_columns(["a", "b"])` is the atollas equivalent
+        of pandas' `df.loc[["a", "b"]]`
+        """
         new_df = self.df[columns]
         new_schema = {k: v for k, v in self.schema if k in columns}
         return DataFrame(new_df, schema=Schema(**new_schema))

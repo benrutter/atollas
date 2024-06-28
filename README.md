@@ -77,3 +77,11 @@ atollas.read_csv raise TypeError:
 Which means we can track down issues a *lot* faster.
 
 Atollas moniters types at read time, and additionally will raise errors when operations are incorrect for the specified schema. For instance, if merging with `one-to-one` cardinality, both sides of the merge operation must be unique (i.e. a `unique(integer)` type rather than simply `integer`). This helps you catch errors you didn't even think of at development time, neato-burrito!
+
+
+## Comparison to Pandera
+
+The most similar project (at least that I know about) is `pandera` - `pandera` is a really awesome, and much more developed project that `atollas`. It's probably the most established tool for schema enforcement of type level dataframes, but is a little different in aims from Atollas.
+
+`pandera` gives you decorators and function to check schemas at various points, but your code is still essentially pandas code. Whilst `atollas` tries to provide a wrapper for additional column level type safety.
+

@@ -2,6 +2,8 @@
 
 A column level typed runner for pandas workflows.
 
+(docs are here)[https://benrutter.github.io/atollas/]
+
 ## ⚠️ Warning
 
 This is still very *pre-alpha and experimental*, have fun experimenting with it, but it isn't ready for production workflows just yet.

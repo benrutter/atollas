@@ -1,0 +1,21 @@
+site_name: atollas
+site_url: https://benrutter.github.io/atollas
+
+nav:
+  - Home: index.md
+  - Quick Start: quick-start.md
+  - API Docs:
+      - dataframe.md
+      - aggregations.md
+      - types.md
+      - dataframe_schema.md
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+    accent: pink
+
+plugins:
+  - mkdocstrings

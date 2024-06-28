@@ -1,6 +1,6 @@
 [project]
 name = "atollas"
-version = "0.0.2"
+version = "0.0.3"
 description = "Add your description here"
 dependencies = [
     "pandas>=2",
@@ -17,5 +17,9 @@ build-backend = "flit_core.buildapi"
 managed = true
 dev-dependencies = [
     "ipdb>=0.13.13",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.27",
+    "mkdocstrings>=0.25.1",
+    "mkdocstrings-python>=1.10.5",
 ]
 

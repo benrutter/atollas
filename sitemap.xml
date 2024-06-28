@@ -6,7 +6,27 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://benrutter.github.io/atollas/aggregations/</loc>
+         <lastmod>2024-06-28</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://benrutter.github.io/atollas/dataframe/</loc>
+         <lastmod>2024-06-28</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://benrutter.github.io/atollas/dataframe_schema/</loc>
+         <lastmod>2024-06-28</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://benrutter.github.io/atollas/quick-start/</loc>
+         <lastmod>2024-06-28</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://benrutter.github.io/atollas/types/</loc>
          <lastmod>2024-06-28</lastmod>
          <changefreq>daily</changefreq>
     </url>

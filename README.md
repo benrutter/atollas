@@ -6,7 +6,7 @@ A column level typed runner for pandas workflows.
 
 ## ⚠️ Warning
 
-This is still very *pre-alpha and experimental*, have fun experimenting with it, but it isn't ready for production workflows just yet.
+This was created as an *experimental exercise*, have fun playing around with it, but it isn't being continually maintained at this point.
 
 
 ## Motivation
